@@ -18,7 +18,10 @@ def tune(X, y, space, scoring,
          verbose=True, display_plots=False):
     
     # define evaluation
-    cv = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=random_state)
+    if modeltype == 'clf':
+        cv = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=random_state)
+    elif modeltype == 'reg':
+        cv = RepeatedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=random_state)
   
     if verbose:
         verbosity = 1
