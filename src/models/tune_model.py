@@ -4,42 +4,48 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from xgboost import XGBRegressor
 from sklearn.model_selection import RepeatedKFold
+from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.model_selection import GridSearchCV
+import warnings
 
 
-
+# ignore warnings
+warnings.filterwarnings('ignore')
 def tune(X, y, space, scoring, 
-         model, search_type='grid', n_iter_random=100,
+         model, modeltype='clf', search_type='grid', n_iter_random=100,
          n_splits=5, n_repeats=3, random_state=1,
          verbose=True, display_plots=False):
     
     # define evaluation
-    cv = RepeatedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=random_state)
+    cv = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=random_state)
+  
+    if verbose:
+        verbosity = 1
 
     # define search
     if search_type == 'grid':
-        search = GridSearchCV(model, space, scoring=scoring, n_jobs=-1, cv=cv)
+        search = GridSearchCV(model, space, scoring=scoring, n_jobs=-1, cv=cv, verbose=verbosity, refit='AUC')
     elif search_type == 'random':
-        search = RandomizedSearchCV(model, space, scoring=scoring, n_jobs=-1, cv=cv, n_iter=n_iter_random)
+        search = RandomizedSearchCV(model, space, scoring=scoring, n_jobs=-1, cv=cv, n_iter=n_iter_random, verbose=verbosity, refit='AUC')
     
     # execute search
     result = search.fit(X, y)
     
     # plot results
-    results_df = pd.DataFrame(result.cv_results_)
-    for key, values in space.items():
-        
-        # group the results by the hyperparameter
-        param_means = []
-        param_stds = []
-        for value in values:
-            mask = results_df['param_' + key] == value
-            param_means.append(np.mean(results_df[mask]['mean_test_score']))
-            param_stds.append(np.std(results_df[mask]['mean_test_score']))
-        
-        # create plot with two subplots side by side
-        if display_plots:
+    if display_plots:
+        results_df = pd.DataFrame(result.cv_results_)
+        for key, values in space.items():
+            
+            # group the results by the hyperparameter
+            param_means = []
+            param_stds = []
+            for value in values:
+                mask = results_df['param_' + key] == value
+                param_means.append(np.mean(results_df[mask]['mean_test_score']))
+                param_stds.append(np.std(results_df[mask]['mean_test_score']))
+            
+            # create plot with two subplots side by side
             fig, ax = plt.subplots(1, 2, figsize=(12, 5))
             fig.suptitle(key)
             ax[0].plot(values, param_means)
