@@ -27,11 +27,7 @@ sys.path.append(resolved_path)
 from tune_model import tune
 
 # function to train the imputer
-def train_imputer(train, y_train, path_to_save, model, param_space, scoring, normalize, refit):
-    # if the data should be normalized
-    if normalize:
-        train = normalize(train)
-    
+def train_imputer(train, y_train, path_to_save, model, param_space, scoring, normalization, refit):    
     print('Fine tuning the imputer...', flush=True)
     # create the imputer
     best_params, best_model = tune(train, y_train , param_space, 
@@ -53,6 +49,13 @@ def train_imputer(train, y_train, path_to_save, model, param_space, scoring, nor
 def impute(train, test, y_train, model, param_space, 
            scoring, path_to_save=None, normalize=False, 
            retrain_if_exists=False, refit=None, path_data=None):
+    
+    data_retrieved = False # flag to check if the data is retrieved
+
+    if normalize:
+        scaler = StandardScaler()
+        train = scaler.fit_transform(train)
+        test = scaler.transform(test)
     
     if refit is None:
         refit = 'mean_test_score'
@@ -79,6 +82,8 @@ def impute(train, test, y_train, model, param_space,
                 # load the pickle file
                 with open(path_data, 'rb') as f:
                     imputed_test = pkl.load(f)
+
+                data_retrieved = True
                 
         # if it does not exist, train the model
         except:
@@ -92,12 +97,23 @@ def impute(train, test, y_train, model, param_space,
 
     # impute the data
     print('Imputing the test data...', flush=True)
-    imputed_test = imputer.transform(test)
+
+    if data_retrieved:
+        return imputed_test
+
+
+    # try to impute the data, if it fails, use the predict method (compatibilty with older versions of sklearn and xgboost)
+    try:
+        imputed_test = imputer.transform(test)
+    except:
+        imputed_test = imputer.predict(test)
 
     if type(path_data) is not type(None):
-        # save the imputed data
+    # save the imputed data
         with open(path_data, 'wb') as f:
             pkl.dump(imputed_test, f)
+
+    
     
     print('Imputation completed.', flush=True)
 
